@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const navLinks = [
-  { label: 'Home', href: '#home' },
-  { label: 'About', href: '#about' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Safety Guidelines', href: '#safety-guidelines' },
+  { label: 'Home', href: '/#home' },
+  { label: 'About', href: '/#about' },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'Safety Guidelines', href: '/#safety-guidelines' },
 ];
 
 export default function Navbar() {
@@ -15,10 +16,13 @@ export default function Navbar() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 xl:px-14">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <a href="#home" className="flex items-center gap-2 text-blue-800 font-bold text-xl tracking-tight hover:opacity-90 transition-opacity">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-blue-800 font-bold text-xl tracking-tight hover:opacity-90 transition-opacity"
+          >
             <ShieldIcon />
             <span>CyberTrace<span className="text-blue-500">India</span></span>
-          </a>
+          </Link>
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-6">
@@ -35,20 +39,18 @@ export default function Navbar() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href="#login"
-              onClick={(e) => { e.preventDefault(); alert('Login page — coming in next development phase.'); }}
+            <Link
+              to="/login"
               className="px-4 py-2 text-sm font-medium text-blue-700 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors duration-200"
             >
               Login
-            </a>
-            <a
-              href="#register"
-              onClick={(e) => { e.preventDefault(); alert('Registration page — coming in next development phase.'); }}
+            </Link>
+            <Link
+              to="/register"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors duration-200"
             >
               Register
-            </a>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -76,20 +78,20 @@ export default function Navbar() {
             </a>
           ))}
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-            <a
-              href="#login"
-              onClick={(e) => { e.preventDefault(); setMenuOpen(false); alert('Login page — coming in next development phase.'); }}
+            <Link
+              to="/login"
+              onClick={() => setMenuOpen(false)}
               className="block w-full text-center px-4 py-2 text-sm font-medium text-blue-700 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
             >
               Login
-            </a>
-            <a
-              href="#register"
-              onClick={(e) => { e.preventDefault(); setMenuOpen(false); alert('Registration page — coming in next development phase.'); }}
+            </Link>
+            <Link
+              to="/register"
+              onClick={() => setMenuOpen(false)}
               className="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors"
             >
               Register
-            </a>
+            </Link>
           </div>
         </div>
       )}
