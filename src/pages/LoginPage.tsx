@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const { login, isAuthenticated, registeredUsersCount } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const routeState = location.state as { registeredEmail?: string; message?: string } | null;
+
+  const [email, setEmail] = useState(() => routeState?.registeredEmail || '');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -14,7 +21,12 @@ export default function LoginPage() {
   const [feedback, setFeedback] = useState<{
     type: 'info' | 'success' | 'warning';
     message: string;
-  } | null>(null);
+  } | null>(() => (routeState?.message ? { type: 'info', message: routeState.message } : null));
+
+  // If already authenticated, redirect to dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -46,13 +58,20 @@ export default function LoginPage() {
       return;
     }
 
-    // Do not pretend a real account has been authenticated.
-    // Display transparent mock notification ready for future auth integration.
-    setFeedback({
-      type: 'info',
-      message:
-        'Mock Mode: Form inputs validated successfully. Real citizen authentication and case dashboard routing will be connected in an upcoming development phase.',
-    });
+    // Authenticate against temporary demo accounts created through registration
+    const result = login(email, password);
+
+    if (!result.success) {
+      setFeedback({
+        type: 'warning',
+        message: result.error || 'Authentication failed. Please verify your credentials.',
+      });
+      return;
+    }
+
+    // Success: navigate to the authenticated welcome page
+    const target = (location.state as { from?: string })?.from || '/dashboard';
+    navigate(target, { replace: true });
   };
 
   const handleForgotPassword = (e: React.MouseEvent) => {
@@ -137,6 +156,20 @@ export default function LoginPage() {
                   Enter your verified credentials to access your reported cases.
                 </p>
               </div>
+
+              {/* Help tip when no user has registered yet */}
+              {!feedback && registeredUsersCount === 0 && (
+                <div className="mb-5 p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl text-xs text-blue-800 flex items-start gap-2">
+                  <span className="shrink-0 mt-0.5"><InfoCircleIcon /></span>
+                  <p>
+                    <span className="font-semibold">Demo Authentication:</span> No accounts registered in this session yet. Please{' '}
+                    <Link to="/register" className="font-bold underline hover:text-blue-950">
+                      register a demo account
+                    </Link>{' '}
+                    first to test login.
+                  </p>
+                </div>
+              )}
 
               {/* Informational Feedback Banner */}
               {feedback && (
