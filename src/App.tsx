@@ -5,6 +5,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import FraudIntelligencePage from './pages/FraudIntelligencePage';
 
 function App() {
   return (
@@ -15,6 +16,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+
+          {/* Task 06: Fraud Intelligence & Pattern Analysis Workspace (Demo Prototype) */}
+          <Route path="/intelligence" element={<FraudIntelligencePage />} />
 
           {/* Protected Citizen Dashboard Route */}
           <Route

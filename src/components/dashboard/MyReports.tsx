@@ -153,18 +153,50 @@ export default function MyReports({
               <span className="text-slate-400 block font-medium">Platform / Medium</span>
               <span className="font-semibold text-slate-800">{selectedReportForDetails.platform}</span>
             </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Suspect Contact / URL</span>
-              <span className="font-semibold text-rose-700 break-all">{selectedReportForDetails.suspectContact}</span>
-            </div>
             {selectedReportForDetails.transactionId && (
-              <div className="sm:col-span-3">
+              <div>
                 <span className="text-slate-400 block font-medium">Transaction Reference / UTR</span>
                 <span className="font-mono font-semibold text-slate-800">
                   {selectedReportForDetails.transactionId}
                 </span>
               </div>
             )}
+
+            {/* Suspect Identifiers — structured multi-identifier display */}
+            <div className="sm:col-span-3">
+              <span className="text-slate-400 block font-medium mb-2">Suspect Identifiers</span>
+              {selectedReportForDetails.suspectIdentifiers && selectedReportForDetails.suspectIdentifiers.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedReportForDetails.suspectIdentifiers.map((ident, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 font-mono text-[11px] text-slate-800 shadow-2xs"
+                    >
+                      <span
+                        className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                          ident.type === 'upi'
+                            ? 'bg-blue-100 text-blue-800'
+                            : ident.type === 'phone'
+                            ? 'bg-green-100 text-green-800'
+                            : ident.type === 'email'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}
+                      >
+                        {ident.type}
+                      </span>
+                      <span className="text-rose-700 font-semibold break-all">{ident.value}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                // Fallback: render legacy suspectContact string
+                <span className="font-semibold text-rose-700 break-all font-mono text-[11px]">
+                  {selectedReportForDetails.suspectContact}
+                </span>
+              )}
+            </div>
+
             <div className="sm:col-span-3">
               <span className="text-slate-400 block font-medium">Incident Description</span>
               <p className="text-slate-700 mt-1 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">

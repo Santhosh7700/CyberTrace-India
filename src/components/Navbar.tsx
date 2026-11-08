@@ -38,6 +38,14 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
+            <Link
+              to="/intelligence"
+              className="text-indigo-700 hover:text-indigo-900 text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 transition-colors flex items-center"
+              title="Inspect Fraud Pattern Intelligence Engine (Prototype)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mr-1.5 animate-pulse"></span>
+              Fraud Intelligence
+            </Link>
           </div>
 
           {/* Desktop Auth Buttons */}
@@ -104,6 +112,13 @@ export default function Navbar() {
             </a>
           ))}
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+            <Link
+              to="/intelligence"
+              onClick={() => setMenuOpen(false)}
+              className="block w-full text-center px-4 py-2 text-xs font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-md"
+            >
+              Fraud Intelligence Workspace (Demo)
+            </Link>
             {isAuthenticated ? (
               <>
                 <Link

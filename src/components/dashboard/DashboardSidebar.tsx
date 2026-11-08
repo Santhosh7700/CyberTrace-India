@@ -162,6 +162,18 @@ export default function DashboardSidebar({
               </button>
             );
           })}
+
+          <div className="pt-2">
+            <a
+              href="/intelligence"
+              className="w-full flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-indigo-300 hover:bg-slate-800 hover:text-white transition-colors border border-indigo-500/20"
+            >
+              <svg className="w-4 h-4 mr-2.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Fraud Intelligence (Demo)
+            </a>
+          </div>
         </nav>
 
         {/* Footer Logout */}

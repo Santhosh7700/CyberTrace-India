@@ -1,3 +1,5 @@
+import type { SuspectIdentifier } from './intelligence';
+
 export type ScamCategory =
   | 'UPI Fraud'
   | 'Phishing'
@@ -28,7 +30,8 @@ export interface ScamReport {
   reportedDate: string;
   amountLost: number;
   transactionId?: string;
-  suspectContact: string;
+  suspectContact: string; // Backward compatibility display summary
+  suspectIdentifiers: SuspectIdentifier[]; // Structured multi-identifier array
   platform: string;
   description: string;
   status: ReportStatus;
