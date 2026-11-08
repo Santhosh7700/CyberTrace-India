@@ -83,12 +83,12 @@ export default function DashboardSidebar({
 
         {/* Security Badge */}
         <div className="p-4 mx-4 my-4 rounded-lg bg-slate-800/70 border border-slate-700/50 text-xs">
-          <div className="flex items-center space-x-2 text-emerald-400 font-semibold mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Secure Citizen Session</span>
+          <div className="flex items-center space-x-2 text-blue-400 font-semibold mb-1">
+            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+            <span>Citizen Session (Demo Mode)</span>
           </div>
           <p className="text-slate-400 text-[11px] leading-relaxed">
-            End-to-end evidence encryption & verification sandbox active.
+            Frontend demonstration environment. Evidence and incident records are retained in browser session memory.
           </p>
         </div>
 

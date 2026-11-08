@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import type { ScamReport, EvidenceFileItem } from '../types/dashboard';
+import type { ScamReport } from '../types/dashboard';
 import { INITIAL_MOCK_REPORTS } from '../data/mockReports';
 import DashboardSidebar, { type DashboardTab } from '../components/dashboard/DashboardSidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
@@ -21,11 +21,8 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // In-memory reports state initialized with realistic mock cases
+  // In-memory reports state initialized with realistic mock cases and their attached evidence
   const [reports, setReports] = useState<ScamReport[]>(INITIAL_MOCK_REPORTS);
-
-  // In-memory evidence files state
-  const [evidenceList, setEvidenceList] = useState<EvidenceFileItem[]>([]);
 
   // Selected report for timeline / details view
   const [selectedReportForDetails, setSelectedReportForDetails] = useState<ScamReport | null>(null);
@@ -35,6 +32,17 @@ export default function DashboardPage() {
   const underReviewCount = reports.filter((r) => r.status === 'Under Review').length;
   const underInvestigationCount = reports.filter((r) => r.status === 'Under Investigation').length;
   const resolvedCount = reports.filter((r) => r.status === 'Resolved').length;
+
+  // Flattened evidence list derived from all submitted reports, ensuring scamCategory & reportRef are tied to parent report
+  const allEvidenceFiles = useMemo(() => {
+    return reports.flatMap((rep) =>
+      (rep.evidenceFiles || []).map((file) => ({
+        ...file,
+        reportRef: file.reportRef || rep.referenceId,
+        scamCategory: file.scamCategory || rep.category,
+      }))
+    );
+  }, [reports]);
 
   const handleLogout = () => {
     logout();
@@ -51,18 +59,30 @@ export default function DashboardPage() {
     setActiveTab('my-reports');
   };
 
-  const handleAddEvidenceFiles = (newFiles: EvidenceFileItem[]) => {
-    setEvidenceList((prev) => [...prev, ...newFiles]);
-  };
+  const handleRemoveEvidenceFile = (fileId: string) => {
+    setReports((prev) =>
+      prev.map((rep) => {
+        const target = rep.evidenceFiles?.find((f) => f.id === fileId);
+        if (target?.previewUrl) {
+          URL.revokeObjectURL(target.previewUrl);
+        }
+        return {
+          ...rep,
+          evidenceFiles: rep.evidenceFiles?.filter((f) => f.id !== fileId) || [],
+        };
+      })
+    );
 
-  const handleRemoveEvidenceFile = (id: string) => {
-    setEvidenceList((prev) => {
-      const target = prev.find((item) => item.id === id);
-      if (target?.previewUrl) {
-        URL.revokeObjectURL(target.previewUrl);
-      }
-      return prev.filter((item) => item.id !== id);
-    });
+    // If active details view contains this file, update it
+    if (selectedReportForDetails) {
+      setSelectedReportForDetails((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          evidenceFiles: prev.evidenceFiles?.filter((f) => f.id !== fileId) || [],
+        };
+      });
+    }
   };
 
   return (
@@ -141,7 +161,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: Report a Scam */}
+          {/* TAB 2: Report a Scam with Integrated Evidence Attachment */}
           {activeTab === 'report' && (
             <ReportForm
               onSubmitSuccess={handleNewReportSubmitted}
@@ -149,7 +169,7 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* TAB 3: My Reports / Case Tracking */}
+          {/* TAB 3: My Reports / Case Tracking & Associated Evidence */}
           {activeTab === 'my-reports' && (
             <MyReports
               reports={reports}
@@ -159,12 +179,12 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* TAB 4: Evidence Management */}
+          {/* TAB 4: Evidence Management Repository */}
           {activeTab === 'evidence' && (
             <EvidenceManager
-              evidenceList={evidenceList}
-              onAddFiles={handleAddEvidenceFiles}
+              evidenceList={allEvidenceFiles}
               onRemoveFile={handleRemoveEvidenceFile}
+              onNavigateToReport={() => setActiveTab('report')}
             />
           )}
 

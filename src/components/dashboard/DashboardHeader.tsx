@@ -45,7 +45,7 @@ export default function DashboardHeader({
             Welcome, <span className="text-blue-700">{currentUser?.fullName || 'Citizen'}</span>
           </h1>
           <p className="text-xs text-slate-500 hidden sm:block">
-            National Cyber Fraud Reporting & Evidence Verification Workspace
+            Online Scam Evidence Gathering & Reporting Portal (Demo)
           </p>
         </div>
       </div>

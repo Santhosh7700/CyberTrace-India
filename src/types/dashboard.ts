@@ -9,6 +9,17 @@ export type ScamCategory =
 
 export type ReportStatus = 'Submitted' | 'Under Review' | 'Under Investigation' | 'Resolved';
 
+export interface EvidenceFileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  previewUrl?: string;
+  selectedAt: string;
+  reportRef?: string;
+  scamCategory?: ScamCategory;
+}
+
 export interface ScamReport {
   id: string;
   referenceId: string;
@@ -21,6 +32,7 @@ export interface ScamReport {
   platform: string;
   description: string;
   status: ReportStatus;
+  evidenceFiles: EvidenceFileItem[];
   statusTimeline: {
     submittedAt: string;
     underReviewAt?: string;
@@ -28,14 +40,4 @@ export interface ScamReport {
     resolvedAt?: string;
     remarks?: string;
   };
-}
-
-export interface EvidenceFileItem {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  previewUrl?: string;
-  selectedAt: string;
-  reportRef?: string;
 }

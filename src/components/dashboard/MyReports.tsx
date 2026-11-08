@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ScamReport, ReportStatus } from '../../types/dashboard';
+import type { ScamReport, ReportStatus, EvidenceFileItem } from '../../types/dashboard';
 
 interface MyReportsProps {
   reports: ScamReport[];
@@ -16,6 +16,7 @@ export default function MyReports({
 }: MyReportsProps) {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [evidencePreviewFile, setEvidencePreviewFile] = useState<EvidenceFileItem | null>(null);
 
   const filteredReports = reports.filter((rep) => {
     const matchesFilter = filterStatus === 'ALL' || rep.status === filterStatus;
@@ -47,13 +48,19 @@ export default function MyReports({
     }).format(amt);
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
   // Timeline Step calculation
   const getTimelineSteps = (report: ScamReport) => {
     const stages = [
       {
         step: 1,
         title: 'Report Submitted',
-        desc: 'Citizen complaint acknowledged and case reference issued.',
+        desc: 'Citizen complaint acknowledged with attached evidence files and case reference issued.',
         date: report.statusTimeline.submittedAt,
         isCompleted: true,
       },
@@ -93,7 +100,7 @@ export default function MyReports({
           </div>
           <h2 className="text-xl font-bold text-slate-900">Submitted Cyber Incident Reports</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Track real-time investigation stages, legal notices, and official remarks.
+            Track real-time investigation stages, attached evidence, and official remarks.
           </p>
         </div>
         <button
@@ -166,8 +173,67 @@ export default function MyReports({
             </div>
           </div>
 
+          {/* Associated Evidence Files Section */}
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
+              <span className="flex items-center">
+                <svg className="w-4 h-4 mr-1.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                Attached Evidence Files ({selectedReportForDetails.evidenceFiles?.length || 0})
+              </span>
+            </h3>
+
+            {(!selectedReportForDetails.evidenceFiles || selectedReportForDetails.evidenceFiles.length === 0) ? (
+              <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500">
+                No supporting evidence files were attached when lodging this report.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {selectedReportForDetails.evidenceFiles.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="p-3 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2 shadow-2xs hover:border-blue-300 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      {ev.previewUrl ? (
+                        <img
+                          src={ev.previewUrl}
+                          alt={ev.name}
+                          onClick={() => setEvidencePreviewFile(ev)}
+                          className="w-10 h-10 rounded object-cover border border-slate-200 shrink-0 cursor-pointer hover:opacity-80"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 truncate">{ev.name}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {formatFileSize(ev.size)} • {ev.type || 'Document'}
+                        </p>
+                      </div>
+                    </div>
+                    {ev.previewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEvidencePreviewFile(ev)}
+                        className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition-colors shrink-0"
+                      >
+                        Preview
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Visual Progress Timeline */}
-          <div className="mt-8">
+          <div className="mt-8 pt-6 border-t border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 mb-6 flex items-center justify-between">
               <span>Official Case Timeline & Status Progression</span>
               <span className="text-[11px] font-normal text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
@@ -277,6 +343,7 @@ export default function MyReports({
                     <th className="py-3 px-4">Scam Type</th>
                     <th className="py-3 px-4">Report Date</th>
                     <th className="py-3 px-4">Financial Loss</th>
+                    <th className="py-3 px-4">Evidence</th>
                     <th className="py-3 px-4">Current Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -288,6 +355,14 @@ export default function MyReports({
                       <td className="py-3.5 px-4 text-slate-800">{rep.category}</td>
                       <td className="py-3.5 px-4 text-slate-600">{rep.reportedDate}</td>
                       <td className="py-3.5 px-4 font-semibold text-slate-900">{formatCurrency(rep.amountLost)}</td>
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                          <svg className="w-3.5 h-3.5 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          {rep.evidenceFiles?.length || 0} file{(rep.evidenceFiles?.length || 0) === 1 ? '' : 's'}
+                        </span>
+                      </td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusBadge(
@@ -328,7 +403,7 @@ export default function MyReports({
                   <div className="flex justify-between items-baseline">
                     <div>
                       <h4 className="text-sm font-semibold text-slate-900">{rep.category}</h4>
-                      <p className="text-xs text-slate-500">Reported {rep.reportedDate}</p>
+                      <p className="text-xs text-slate-500">Reported {rep.reportedDate} • {rep.evidenceFiles?.length || 0} attached file(s)</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-slate-400">Financial Loss</p>
@@ -340,7 +415,7 @@ export default function MyReports({
                       onClick={() => onSelectReport(rep)}
                       className="w-full py-1.5 rounded-lg bg-blue-50 text-blue-700 font-semibold text-xs text-center hover:bg-blue-100"
                     >
-                      View Case Timeline
+                      View Case Timeline & Evidence
                     </button>
                   </div>
                 </div>
@@ -349,6 +424,56 @@ export default function MyReports({
           </>
         )}
       </div>
+
+      {/* Lightbox Modal for Evidence Preview */}
+      {evidencePreviewFile && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close evidence preview"
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setEvidencePreviewFile(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+              setEvidencePreviewFile(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl max-w-2xl w-full p-4 overflow-hidden relative cursor-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h4 className="text-sm font-bold text-slate-800 truncate pr-4">{evidencePreviewFile.name}</h4>
+              <button
+                type="button"
+                onClick={() => setEvidencePreviewFile(null)}
+                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="py-4 flex items-center justify-center max-h-[70vh] overflow-auto">
+              {evidencePreviewFile.previewUrl && (
+                <img
+                  src={evidencePreviewFile.previewUrl}
+                  alt={evidencePreviewFile.name}
+                  className="max-h-[60vh] max-w-full rounded-lg object-contain"
+                />
+              )}
+            </div>
+            <div className="text-right pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEvidencePreviewFile(null)}
+                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

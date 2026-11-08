@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ScamCategory, ScamReport } from '../../types/dashboard';
+import { useState, useRef, useEffect } from 'react';
+import type { ScamCategory, ScamReport, EvidenceFileItem } from '../../types/dashboard';
 
 interface ReportFormProps {
   onSubmitSuccess: (newReport: ScamReport) => void;
@@ -23,6 +23,7 @@ interface FormErrors {
   suspectContact?: string;
   platform?: string;
   description?: string;
+  evidence?: string;
 }
 
 export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProps) {
@@ -36,9 +37,26 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
     description: '',
   });
 
+  // Attached evidence state during reporting
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFileItem[]>([]);
+  const [previewModalFile, setPreviewModalFile] = useState<EvidenceFileItem | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedReport, setSubmittedReport] = useState<ScamReport | null>(null);
+
+  // Clean up object URLs on component unmount
+  useEffect(() => {
+    return () => {
+      evidenceFiles.forEach((file) => {
+        if (file.previewUrl) {
+          URL.revokeObjectURL(file.previewUrl);
+        }
+      });
+    };
+  }, [evidenceFiles]);
 
   const categories: ScamCategory[] = [
     'UPI Fraud',
@@ -49,6 +67,74 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
     'Social Media Scam',
     'Other',
   ];
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const handleProcessFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const validItems: EvidenceFileItem[] = [];
+    let fileError = '';
+
+    Array.from(fileList).forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        fileError = `File "${file.name}" exceeds the 10 MB limit.`;
+        return;
+      }
+
+      const isImg = file.type.startsWith('image/');
+      const previewUrl = isImg ? URL.createObjectURL(file) : undefined;
+
+      validItems.push({
+        id: `ev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        name: file.name,
+        size: file.size,
+        type: file.type || 'application/octet-stream',
+        previewUrl,
+        selectedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    });
+
+    if (fileError) {
+      setErrors((prev) => ({ ...prev, evidence: fileError }));
+    } else {
+      setErrors((prev) => ({ ...prev, evidence: undefined }));
+    }
+
+    if (validItems.length > 0) {
+      setEvidenceFiles((prev) => [...prev, ...validItems]);
+    }
+  };
+
+  const handleRemoveEvidence = (id: string) => {
+    setEvidenceFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleProcessFiles(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
 
   const validate = (): boolean => {
     const errs: FormErrors = {};
@@ -112,11 +198,17 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
 
     setIsSubmitting(true);
 
-    // Simulate mock validation & submission
     setTimeout(() => {
       const newRefId = generateReferenceId();
       const now = new Date();
       const reportedDate = now.toISOString().split('T')[0];
+
+      // Associate all attached evidence files with this reference ID and scam category
+      const associatedEvidence = evidenceFiles.map((file) => ({
+        ...file,
+        reportRef: newRefId,
+        scamCategory: formData.category as ScamCategory,
+      }));
 
       const newReport: ScamReport = {
         id: `rep-${Date.now()}`,
@@ -130,9 +222,10 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
         platform: formData.platform.trim(),
         description: formData.description.trim(),
         status: 'Submitted',
+        evidenceFiles: associatedEvidence,
         statusTimeline: {
           submittedAt: `${reportedDate} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-          remarks: 'Report registered in frontend memory session. Reference number issued.',
+          remarks: `Report registered with ${associatedEvidence.length} supporting evidence file(s) in frontend demo session.`,
         },
       };
 
@@ -155,21 +248,40 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
         </span>
         <h2 className="text-2xl font-bold text-slate-900">Cyber Incident Complaint Registered</h2>
         <p className="text-sm text-slate-600 mt-2">
-          Your complaint has been acknowledged in the frontend session. A tracking reference ID has been generated:
+          Your complaint along with <strong>{submittedReport.evidenceFiles.length} attached evidence item(s)</strong> has been saved to your active browser session:
         </p>
 
-        <div className="my-6 p-4 rounded-xl bg-slate-50 border border-slate-200 inline-block font-mono text-xl font-extrabold text-blue-700 tracking-wider">
+        <div className="my-5 p-4 rounded-xl bg-slate-50 border border-slate-200 inline-block font-mono text-xl font-extrabold text-blue-700 tracking-wider">
           {submittedReport.referenceId}
         </div>
 
+        {/* Evidence files summary */}
+        {submittedReport.evidenceFiles.length > 0 && (
+          <div className="mb-6 p-4 rounded-lg bg-blue-50/60 border border-blue-200 text-left text-xs">
+            <span className="font-semibold text-blue-900 block mb-2">
+              Attached Evidence ({submittedReport.evidenceFiles.length}):
+            </span>
+            <ul className="space-y-1 text-slate-700">
+              {submittedReport.evidenceFiles.map((ev) => (
+                <li key={ev.id} className="flex items-center space-x-2">
+                  <span className="text-blue-600 font-bold">•</span>
+                  <span className="font-medium truncate max-w-xs">{ev.name}</span>
+                  <span className="text-slate-400">({formatFileSize(ev.size)})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 text-left mb-6">
-          <strong>Notice:</strong> This is an in-memory frontend mock session. In production, this record would be routed to the Cyber Police State Nodal Hub via the Spring Boot API.
+          <strong>Notice:</strong> This is an in-memory frontend demo session. Files are retained temporarily in browser memory and are not uploaded to any remote server.
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => {
               setSubmittedReport(null);
+              setEvidenceFiles([]);
               setFormData({
                 category: '',
                 incidentDate: '',
@@ -204,7 +316,7 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Report an Online Cyber Scam</h2>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Please provide accurate details of the fraudulent incident. All information entered remains in your secure browser session.
+          Please provide accurate details and attach supporting evidence. Information entered is maintained in your frontend session.
         </p>
       </div>
 
@@ -366,6 +478,129 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
           </div>
         </div>
 
+        {/* INTEGRATED SECTION: Attach Supporting Evidence */}
+        <div className="pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center">
+                <svg className="w-4 h-4 mr-1.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                Attach Supporting Evidence
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Attach transaction receipts, WhatsApp/Telegram screenshots, bank statements, or malicious links (PNG, JPG, WEBP, PDF, DOC). Max 10 MB per file.
+              </p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              {evidenceFiles.length} attached
+            </span>
+          </div>
+
+          {/* Drag and Drop Zone */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
+              isDragOver
+                ? 'border-blue-600 bg-blue-50/60'
+                : 'border-slate-300 hover:border-blue-500 hover:bg-slate-50/70 bg-slate-50/30'
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp,.pdf,.doc,.docx"
+              onChange={(e) => handleProcessFiles(e.target.files)}
+              className="hidden"
+            />
+            <div className="flex flex-col items-center justify-center">
+              <svg className="w-8 h-8 text-blue-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
+              </svg>
+              <p className="text-xs font-semibold text-slate-800">
+                Click to browse files or drag and drop evidence here
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                PNG, JPG, WEBP, PDF, DOC up to 10 MB
+              </p>
+            </div>
+          </div>
+
+          {errors.evidence && (
+            <p className="text-xs text-rose-500 mt-1.5 font-medium">{errors.evidence}</p>
+          )}
+
+          {/* Attached Files List Preview */}
+          {evidenceFiles.length > 0 && (
+            <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white overflow-hidden">
+              {evidenceFiles.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    {item.previewUrl ? (
+                      <img
+                        src={item.previewUrl}
+                        alt={item.name}
+                        onClick={() => setPreviewModalFile(item)}
+                        className="w-10 h-10 rounded-md object-cover border border-slate-200 shrink-0 cursor-pointer hover:opacity-80"
+                        title="Click to preview"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate max-w-xs sm:max-w-md">{item.name}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {formatFileSize(item.size)} • {item.type || 'Document'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 shrink-0">
+                    {item.previewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewModalFile(item)}
+                        className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                      >
+                        Preview
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEvidence(item.id)}
+                      className="px-2.5 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded transition-colors"
+                      title="Remove file"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Action Buttons */}
         <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">
           <button
@@ -393,11 +628,61 @@ export default function ReportForm({ onSubmitSuccess, onCancel }: ReportFormProp
                 Registering Complaint...
               </>
             ) : (
-              'Submit Complaint & Generate Reference ID'
+              `Submit Report & ${evidenceFiles.length} Evidence File${evidenceFiles.length === 1 ? '' : 's'}`
             )}
           </button>
         </div>
       </form>
+
+      {/* Lightbox / Modal for Preview */}
+      {previewModalFile && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close preview modal"
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setPreviewModalFile(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+              setPreviewModalFile(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl max-w-2xl w-full p-4 overflow-hidden relative cursor-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h4 className="text-sm font-bold text-slate-800 truncate pr-4">{previewModalFile.name}</h4>
+              <button
+                type="button"
+                onClick={() => setPreviewModalFile(null)}
+                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="py-4 flex items-center justify-center max-h-[70vh] overflow-auto">
+              {previewModalFile.previewUrl && (
+                <img
+                  src={previewModalFile.previewUrl}
+                  alt={previewModalFile.name}
+                  className="max-h-[60vh] max-w-full rounded-lg object-contain"
+                />
+              )}
+            </div>
+            <div className="text-right pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setPreviewModalFile(null)}
+                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
