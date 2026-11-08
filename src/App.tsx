@@ -4,7 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import WelcomePage from './pages/WelcomePage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
   return (
@@ -16,12 +16,12 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Protected Temporary Welcome / Dashboard Route */}
+          {/* Protected Citizen Dashboard Route */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <WelcomePage />
+                <DashboardPage />
               </ProtectedRoute>
             }
           />
