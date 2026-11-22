@@ -1,35 +1,55 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import { DEMO_INVESTIGATOR_CREDENTIALS } from '../context/authConstants';
+
+type LoginMode = 'citizen' | 'investigator';
 
 export default function LoginPage() {
-  const { login, isAuthenticated, registeredUsersCount } = useAuth();
+  const { login, loginInvestigator, isAuthenticated, userRole, registeredUsersCount } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const routeState = location.state as { registeredEmail?: string; message?: string } | null;
 
+  // Active Login Mode Switcher
+  const [loginMode, setLoginMode] = useState<LoginMode>('citizen');
+
+  // Citizen Login State
   const [email, setEmail] = useState(() => routeState?.registeredEmail || '');
-  const [password, setPassword] = useState('');
+  const [citizenPassword, setCitizenPassword] = useState('');
+  const [citizenShowPassword, setCitizenShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+
+  // Investigator Login State
+  const [cyberId, setCyberId] = useState('');
+  const [investigatorPassword, setInvestigatorPassword] = useState('');
+  const [investigatorShowPassword, setInvestigatorShowPassword] = useState(false);
 
   // Validation errors
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    email?: string;
+    citizenPassword?: string;
+    cyberId?: string;
+    investigatorPassword?: string;
+  }>({});
 
-  // Informational / mock feedback banners
+  // Feedback banners
   const [feedback, setFeedback] = useState<{
     type: 'info' | 'success' | 'warning';
     message: string;
   } | null>(() => (routeState?.message ? { type: 'info', message: routeState.message } : null));
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to appropriate role portal
   if (isAuthenticated) {
+    if (userRole === 'investigator') {
+      return <Navigate to="/investigator" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
-  const validate = () => {
-    const newErrors: { email?: string; password?: string } = {};
+  const validateCitizen = () => {
+    const newErrors: { email?: string; citizenPassword?: string } = {};
 
     if (!email.trim()) {
       newErrors.email = 'Email address is required.';
@@ -40,27 +60,40 @@ export default function LoginPage() {
       }
     }
 
-    if (!password) {
-      newErrors.password = 'Password is required.';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters.';
+    if (!citizenPassword) {
+      newErrors.citizenPassword = 'Password is required.';
+    } else if (citizenPassword.length < 6) {
+      newErrors.citizenPassword = 'Password must be at least 6 characters.';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateInvestigator = () => {
+    const newErrors: { cyberId?: string; investigatorPassword?: string } = {};
+
+    if (!cyberId.trim()) {
+      newErrors.cyberId = 'Official Cyber ID is required.';
+    } else if (cyberId.trim().length < 5) {
+      newErrors.cyberId = 'Please enter a valid Cyber ID (e.g., CYB-IN-20481).';
+    }
+
+    if (!investigatorPassword) {
+      newErrors.investigatorPassword = 'Official authorization password is required.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleCitizenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
 
-    if (!validate()) {
-      return;
-    }
+    if (!validateCitizen()) return;
 
-    // Authenticate against temporary demo accounts created through registration
-    const result = login(email, password);
-
+    const result = login(email, citizenPassword);
     if (!result.success) {
       setFeedback({
         type: 'warning',
@@ -69,9 +102,36 @@ export default function LoginPage() {
       return;
     }
 
-    // Success: navigate to the authenticated welcome page
     const target = (location.state as { from?: string })?.from || '/dashboard';
     navigate(target, { replace: true });
+  };
+
+  const handleInvestigatorSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+
+    if (!validateInvestigator()) return;
+
+    const result = loginInvestigator(cyberId, investigatorPassword);
+    if (!result.success) {
+      setFeedback({
+        type: 'warning',
+        message: result.error || 'Investigator authentication failed. Invalid Cyber ID or password.',
+      });
+      return;
+    }
+
+    navigate('/investigator', { replace: true });
+  };
+
+  const handleUseDemoInvestigator = () => {
+    setCyberId(DEMO_INVESTIGATOR_CREDENTIALS.cyberId);
+    setInvestigatorPassword(DEMO_INVESTIGATOR_CREDENTIALS.password);
+    setErrors({});
+    setFeedback({
+      type: 'info',
+      message: 'Demo credentials loaded. Click "Authorize & Sign In" to access the Investigator Dashboard.',
+    });
   };
 
   const handleForgotPassword = (e: React.MouseEvent) => {
@@ -79,13 +139,15 @@ export default function LoginPage() {
     setFeedback({
       type: 'warning',
       message:
-        'Password recovery service is a placeholder and will be enabled when the citizen authentication system is fully implemented.',
+        loginMode === 'citizen'
+          ? 'Password recovery service is a placeholder and will be enabled when the citizen authentication system is fully implemented.'
+          : 'For officer credential recovery, contact the State Cyber Crime Command Center nodal administrator (Extension 1930).',
     });
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
-      {/* Top Utility Header (Mobile & Tablet Back Link) */}
+      {/* Top Utility Header */}
       <div className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 flex items-center justify-between">
         <Link
           to="/"
@@ -105,68 +167,156 @@ export default function LoginPage() {
         </Link>
       </div>
 
-      {/* Main Two-Column Container */}
+      {/* Main Container */}
       <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-6 sm:py-10 flex items-center">
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Left Column: Branding, Illustration & Security Message */}
+          {/* Left Column: Branding, Illustration & Context Message */}
           <div className="lg:col-span-6 xl:col-span-7 flex flex-col justify-center text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full tracking-wide uppercase border border-blue-200 self-center lg:self-start mb-4">
               <LockShieldIcon />
-              <span>Official Citizen Access</span>
+              <span>
+                {loginMode === 'citizen' ? 'Official Citizen Access' : 'Law Enforcement Command Gateway'}
+              </span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 leading-tight mb-4">
-              Welcome <span className="text-blue-700">Back</span>
+              {loginMode === 'citizen' ? (
+                <>
+                  Welcome <span className="text-blue-700">Back</span>
+                </>
+              ) : (
+                <>
+                  Investigator <span className="text-indigo-700">Command</span>
+                </>
+              )}
             </h1>
 
             <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8">
-              Sign in to access your account and manage your reported cyber fraud cases.
+              {loginMode === 'citizen'
+                ? 'Sign in to access your account, track reported scam complaints, and submit supporting forensic evidence.'
+                : 'Restricted law enforcement gateway for cybercrime officers, forensic analysts, and financial intelligence units.'}
             </p>
 
             {/* Cybersecurity Visual Illustration */}
             <div className="my-2 max-w-sm sm:max-w-md mx-auto lg:mx-0 w-full">
-              <LoginIllustration />
+              <LoginIllustration mode={loginMode} />
             </div>
 
-            {/* Small Security Reassurance Message */}
-            <div className="mt-8 max-w-lg mx-auto lg:mx-0 bg-white border border-blue-100 rounded-xl p-4 flex items-start gap-3 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+            {/* Security Notice Message */}
+            <div className="mt-8 max-w-lg mx-auto lg:mx-0 bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3 shadow-xs">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                  loginMode === 'citizen' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-700'
+                }`}
+              >
                 <CheckBadgeIcon />
               </div>
               <div>
                 <h2 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
-                  Secure Citizen Portal
+                  {loginMode === 'citizen' ? 'Secure Citizen Portal' : 'Restricted Law Enforcement Portal'}
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
-                  Your session is safeguarded with end-to-end security protocols. All reported incident evidence and citizen data are strictly confidential.
+                  {loginMode === 'citizen'
+                    ? 'Your session is safeguarded with end-to-end security protocols. All reported incident evidence and citizen data are strictly confidential.'
+                    : 'Unauthorized access attempts are logged with client fingerprints and reported under Section 43/66 of the Information Technology Act.'}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Citizen Login Form Card */}
+          {/* Right Column: Unified Login Form Card */}
           <div className="lg:col-span-6 xl:col-span-5 flex justify-center lg:justify-end">
-            <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 md:p-10">
+            <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
               
-              {/* Form Header */}
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Citizen Login</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Enter your verified credentials to access your reported cases.
+              {/* Mode Switcher Segmented Control */}
+              <div className="mb-6 bg-slate-100 p-1 rounded-xl flex items-center text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMode('citizen');
+                    setErrors({});
+                    setFeedback(null);
+                  }}
+                  className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    loginMode === 'citizen'
+                      ? 'bg-white text-blue-800 shadow-xs border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <UserIcon />
+                  <span>Citizen Login</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMode('investigator');
+                    setErrors({});
+                    setFeedback(null);
+                  }}
+                  className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    loginMode === 'investigator'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <BadgeIcon />
+                  <span>Investigator Login</span>
+                </button>
+              </div>
+
+              {/* Form Title */}
+              <div className="mb-5">
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                  {loginMode === 'citizen' ? 'Citizen Sign In' : 'Officer Authentication'}
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  {loginMode === 'citizen'
+                    ? 'Enter your verified credentials to access your reported complaints.'
+                    : 'Provide your assigned Cyber ID and official authorization password.'}
                 </p>
               </div>
 
-              {/* Help tip when no user has registered yet */}
-              {!feedback && registeredUsersCount === 0 && (
+              {/* Citizen: Tip when no accounts exist */}
+              {loginMode === 'citizen' && !feedback && registeredUsersCount === 0 && (
                 <div className="mb-5 p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl text-xs text-blue-800 flex items-start gap-2">
                   <span className="shrink-0 mt-0.5"><InfoCircleIcon /></span>
                   <p>
-                    <span className="font-semibold">Demo Authentication:</span> No accounts registered in this session yet. Please{' '}
+                    <span className="font-semibold">Demo Authentication:</span> No accounts registered in this session yet.{' '}
                     <Link to="/register" className="font-bold underline hover:text-blue-950">
-                      register a demo account
+                      Create a demo citizen account
                     </Link>{' '}
                     first to test login.
+                  </p>
+                </div>
+              )}
+
+              {/* Investigator: Demo Credentials Quick-Fill Card */}
+              {loginMode === 'investigator' && (
+                <div className="mb-5 p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold uppercase tracking-wider text-[10px] text-amber-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      Demo Credentials (Development Only)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleUseDemoInvestigator}
+                      className="px-2 py-0.5 bg-amber-200/70 hover:bg-amber-200 text-amber-900 font-bold rounded text-[10px] transition-colors"
+                    >
+                      Autofill Demo
+                    </button>
+                  </div>
+                  <div className="font-mono text-[11px] space-y-0.5 bg-white/70 p-2 rounded border border-amber-200/60">
+                    <div>
+                      <strong className="text-slate-600">Cyber ID:</strong> {DEMO_INVESTIGATOR_CREDENTIALS.cyberId}
+                    </div>
+                    <div>
+                      <strong className="text-slate-600">Password:</strong> {DEMO_INVESTIGATOR_CREDENTIALS.password}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-amber-700 mt-1 italic">
+                    Demonstration only. Not linked to real police or law enforcement databases.
                   </p>
                 </div>
               )}
@@ -174,11 +324,11 @@ export default function LoginPage() {
               {/* Informational Feedback Banner */}
               {feedback && (
                 <div
-                  className={`mb-6 p-4 rounded-xl text-xs sm:text-sm flex items-start gap-3 border ${
+                  className={`mb-5 p-3.5 rounded-xl text-xs flex items-start gap-2.5 border ${
                     feedback.type === 'info'
                       ? 'bg-blue-50 border-blue-200 text-blue-800'
                       : feedback.type === 'warning'
-                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      ? 'bg-rose-50 border-rose-200 text-rose-800'
                       : 'bg-emerald-50 border-emerald-200 text-emerald-800'
                   }`}
                   role="alert"
@@ -196,137 +346,271 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Login Form */}
-              <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                
-                {/* Email Field */}
-                <div>
-                  <label htmlFor="login-email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <MailIcon />
-                    </div>
-                    <input
-                      id="login-email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (errors.email) {
-                          setErrors((prev) => ({ ...prev, email: undefined }));
-                        }
-                      }}
-                      placeholder="e.g. citizen@example.com"
-                      className={`block w-full pl-10 pr-3 py-2.5 text-sm bg-white border rounded-lg transition-colors focus:outline-none ${
-                        errors.email
-                          ? 'border-red-400 text-slate-900 focus:border-red-500 focus:ring-2 focus:ring-red-100'
-                          : 'border-slate-300 text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                      }`}
-                      aria-invalid={!!errors.email}
-                      aria-describedby={errors.email ? 'email-error' : undefined}
-                    />
-                  </div>
-                  {errors.email && (
-                    <p id="email-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircleIcon />
-                      <span>{errors.email}</span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Password Field */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label htmlFor="login-password" className="block text-sm font-medium text-slate-700">
-                      Password <span className="text-red-500">*</span>
+              {/* ─────────────────────────────────────────────────────────── */}
+              {/* MODE A: CITIZEN LOGIN FORM                                  */}
+              {/* ─────────────────────────────────────────────────────────── */}
+              {loginMode === 'citizen' && (
+                <form onSubmit={handleCitizenSubmit} noValidate className="space-y-4">
+                  {/* Email Field */}
+                  <div>
+                    <label htmlFor="login-email" className="block text-xs font-semibold text-slate-700 mb-1">
+                      Email Address <span className="text-red-500">*</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      className="text-xs font-semibold text-blue-700 hover:text-blue-800 hover:underline transition-colors focus:outline-none focus:underline"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <KeyIcon />
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <MailIcon />
+                      </div>
+                      <input
+                        id="login-email"
+                        type="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (errors.email) {
+                            setErrors((prev) => ({ ...prev, email: undefined }));
+                          }
+                        }}
+                        placeholder="e.g. citizen@example.com"
+                        className={`block w-full pl-10 pr-3 py-2.5 text-xs sm:text-sm bg-white border rounded-lg transition-colors focus:outline-none ${
+                          errors.email
+                            ? 'border-red-400 text-slate-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-300 text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
+                        }`}
+                      />
                     </div>
-                    <input
-                      id="login-password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (errors.password) {
-                          setErrors((prev) => ({ ...prev, password: undefined }));
-                        }
-                      }}
-                      placeholder="••••••••"
-                      className={`block w-full pl-10 pr-10 py-2.5 text-sm bg-white border rounded-lg transition-colors focus:outline-none ${
-                        errors.password
-                          ? 'border-red-400 text-slate-900 focus:border-red-500 focus:ring-2 focus:ring-red-100'
-                          : 'border-slate-300 text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
-                      }`}
-                      aria-invalid={!!errors.password}
-                      aria-describedby={errors.password ? 'password-error' : undefined}
-                    />
+                    {errors.email && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircleIcon />
+                        <span>{errors.email}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Password Field */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label htmlFor="login-citizen-password" className="block text-xs font-semibold text-slate-700">
+                        Password <span className="text-red-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-xs font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <KeyIcon />
+                      </div>
+                      <input
+                        id="login-citizen-password"
+                        type={citizenShowPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        value={citizenPassword}
+                        onChange={(e) => {
+                          setCitizenPassword(e.target.value);
+                          if (errors.citizenPassword) {
+                            setErrors((prev) => ({ ...prev, citizenPassword: undefined }));
+                          }
+                        }}
+                        placeholder="••••••••"
+                        className={`block w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-white border rounded-lg transition-colors focus:outline-none ${
+                          errors.citizenPassword
+                            ? 'border-red-400 text-slate-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-300 text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCitizenShowPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                        aria-label={citizenShowPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {citizenShowPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                    {errors.citizenPassword && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircleIcon />
+                        <span>{errors.citizenPassword}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Remember Me */}
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-slate-600">Remember Me</span>
+                    </label>
+                    <span className="text-[11px] text-slate-400">Citizen Session</span>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white text-xs sm:text-sm font-bold rounded-lg shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <SignInIcon />
+                    Sign In as Citizen
+                  </button>
+                </form>
+              )}
+
+              {/* ─────────────────────────────────────────────────────────── */}
+              {/* MODE B: INVESTIGATOR LOGIN FORM                             */}
+              {/* ─────────────────────────────────────────────────────────── */}
+              {loginMode === 'investigator' && (
+                <form onSubmit={handleInvestigatorSubmit} noValidate className="space-y-4">
+                  {/* Authorized Personnel Banner */}
+                  <div className="p-2.5 bg-slate-900 text-white rounded-lg flex items-center gap-2 text-[11px]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                    <span className="font-semibold text-slate-200">
+                      Authorized Cyber Personnel Only
+                    </span>
+                    <span className="text-slate-400 ml-auto font-mono text-[10px]">CCIC-4</span>
+                  </div>
+
+                  {/* Cyber ID Field */}
+                  <div>
+                    <label htmlFor="investigator-cyber-id" className="block text-xs font-semibold text-slate-700 mb-1">
+                      Cyber ID / Officer Credential <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <BadgeIcon />
+                      </div>
+                      <input
+                        id="investigator-cyber-id"
+                        type="text"
+                        autoComplete="username"
+                        value={cyberId}
+                        onChange={(e) => {
+                          setCyberId(e.target.value);
+                          if (errors.cyberId) {
+                            setErrors((prev) => ({ ...prev, cyberId: undefined }));
+                          }
+                        }}
+                        placeholder="e.g. CYB-IN-20481"
+                        className={`block w-full pl-10 pr-3 py-2.5 text-xs sm:text-sm font-mono uppercase bg-white border rounded-lg transition-colors focus:outline-none ${
+                          errors.cyberId
+                            ? 'border-red-400 text-slate-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
+                        }`}
+                      />
+                    </div>
+                    {errors.cyberId && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircleIcon />
+                        <span>{errors.cyberId}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Password Field */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label htmlFor="investigator-password" className="block text-xs font-semibold text-slate-700">
+                        Authorization Password <span className="text-red-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-xs font-semibold text-indigo-700 hover:text-indigo-800 hover:underline"
+                      >
+                        Need Help?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <KeyIcon />
+                      </div>
+                      <input
+                        id="investigator-password"
+                        type={investigatorShowPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        value={investigatorPassword}
+                        onChange={(e) => {
+                          setInvestigatorPassword(e.target.value);
+                          if (errors.investigatorPassword) {
+                            setErrors((prev) => ({ ...prev, investigatorPassword: undefined }));
+                          }
+                        }}
+                        placeholder="••••••••••••"
+                        className={`block w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-white border rounded-lg transition-colors focus:outline-none ${
+                          errors.investigatorPassword
+                            ? 'border-red-400 text-slate-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setInvestigatorShowPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                        aria-label={investigatorShowPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {investigatorShowPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                    {errors.investigatorPassword && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircleIcon />
+                        <span>{errors.investigatorPassword}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700"
+                  >
+                    <LockShieldIcon />
+                    Authorize &amp; Sign In as Investigator
+                  </button>
+
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Law enforcement registration is managed internally. No public investigator registration is permitted.
+                  </p>
+                </form>
+              )}
+
+              {/* Bottom Footer Area */}
+              <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-2.5">
+                {loginMode === 'citizen' ? (
+                  <p className="text-xs text-slate-600">
+                    Don't have an account?{' '}
+                    <Link
+                      to="/register"
+                      className="font-bold text-blue-700 hover:text-blue-800 hover:underline"
+                    >
+                      Create Citizen Account
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Are you a citizen victim?{' '}
                     <button
                       type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => {
+                        setLoginMode('citizen');
+                        setErrors({});
+                        setFeedback(null);
+                      }}
+                      className="font-bold text-blue-700 hover:underline ml-1"
                     >
-                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      Switch to Citizen Login
                     </button>
-                  </div>
-                  {errors.password && (
-                    <p id="password-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircleIcon />
-                      <span>{errors.password}</span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Remember Me Checkbox */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-xs sm:text-sm text-slate-600">Remember Me</span>
-                  </label>
-                  <span className="text-xs text-slate-400">Secure Session</span>
-                </div>
-
-                {/* Sign In Button */}
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  <SignInIcon />
-                  Sign In
-                </button>
-              </form>
-
-              {/* Bottom Registration & Home Links */}
-              <div className="mt-6 pt-6 border-t border-slate-100 text-center space-y-3">
-                <p className="text-xs sm:text-sm text-slate-600">
-                  Don't have an account?{' '}
-                  <Link
-                    to="/register"
-                    className="font-semibold text-blue-700 hover:text-blue-800 hover:underline transition-colors focus:outline-none"
-                  >
-                    Create Account
-                  </Link>
-                </p>
+                  </p>
+                )}
 
                 <div>
                   <Link
@@ -348,8 +632,8 @@ export default function LoginPage() {
       {/* Footer Disclaimer */}
       <footer className="border-t border-slate-200 py-4 bg-white">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 text-center sm:text-left">
-          <span>CyberTrace-India • Citizen Cybercrime Reporting System Prototype</span>
-          <span>Not an official government portal. For urgent emergency cyber fraud, call 1930.</span>
+          <span>CyberTrace-India • Unified Authentication Gateway (Prototype)</span>
+          <span>Emergency Cyber Fraud Reporting Toll-Free: 1930</span>
         </div>
       </footer>
     </div>
@@ -357,14 +641,15 @@ export default function LoginPage() {
 }
 
 /* ── Inline SVG Illustration ─────────────────────────────────── */
-function LoginIllustration() {
+function LoginIllustration({ mode }: { mode: LoginMode }) {
+  const isInvestigator = mode === 'investigator';
+
   return (
     <div className="w-full aspect-16/10 max-h-72">
       <svg viewBox="0 0 520 320" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        {/* Soft Background Plate */}
         <rect x="20" y="20" width="480" height="280" rx="20" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="2" />
         
-        {/* Decorative Grid Pattern */}
+        {/* Grid dots */}
         <circle cx="60" cy="60" r="3" fill="#cbd5e1" />
         <circle cx="90" cy="60" r="3" fill="#cbd5e1" />
         <circle cx="120" cy="60" r="3" fill="#cbd5e1" />
@@ -372,26 +657,26 @@ function LoginIllustration() {
         <circle cx="90" cy="90" r="3" fill="#cbd5e1" />
         <circle cx="120" cy="90" r="3" fill="#cbd5e1" />
 
-        {/* Central Shield Base */}
+        {/* Central Shield */}
         <path
           d="M260 50 L340 90 L340 170 C340 225 305 265 260 280 C215 265 180 225 180 170 L180 90 Z"
-          fill="#dbeafe"
-          stroke="#2563eb"
+          fill={isInvestigator ? '#e0e7ff' : '#dbeafe'}
+          stroke={isInvestigator ? '#4338ca' : '#2563eb'}
           strokeWidth="3"
           strokeLinejoin="round"
         />
 
-        {/* Inner Shield Layer */}
+        {/* Inner Shield */}
         <path
           d="M260 70 L320 100 L320 165 C320 210 295 242 260 256 C225 242 200 210 200 165 L200 100 Z"
-          fill="#eff6ff"
+          fill={isInvestigator ? '#eef2ff' : '#eff6ff'}
         />
 
-        {/* Lock Icon inside Shield */}
-        <rect x="240" y="145" width="40" height="32" rx="6" fill="#1d4ed8" />
+        {/* Lock or Badge Icon */}
+        <rect x="240" y="145" width="40" height="32" rx="6" fill={isInvestigator ? '#312e81' : '#1d4ed8'} />
         <path
           d="M247 145 V133 C247 125.8 252.8 120 260 120 C267.2 120 273 125.8 273 133 V145"
-          stroke="#1d4ed8"
+          stroke={isInvestigator ? '#312e81' : '#1d4ed8'}
           strokeWidth="4"
           strokeLinecap="round"
           fill="none"
@@ -399,32 +684,73 @@ function LoginIllustration() {
         <circle cx="260" cy="159" r="3" fill="#ffffff" />
         <path d="M260 162 V168" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
 
-        {/* Left Floating Card: Authentication Validated */}
-        <rect x="50" y="140" width="120" height="70" rx="10" fill="#ffffff" stroke="#93c5fd" strokeWidth="2" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.05))" />
-        <circle cx="75" cy="165" r="12" fill="#dcfce7" />
-        <path d="M70 165 L73 168 L80 161" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Left Floating Card */}
+        <rect
+          x="50"
+          y="140"
+          width="120"
+          height="70"
+          rx="10"
+          fill="#ffffff"
+          stroke={isInvestigator ? '#a5b4fc' : '#93c5fd'}
+          strokeWidth="2"
+        />
+        <circle cx="75" cy="165" r="12" fill={isInvestigator ? '#e0e7ff' : '#dcfce7'} />
+        <path
+          d="M70 165 L73 168 L80 161"
+          stroke={isInvestigator ? '#4338ca' : '#16a34a'}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
         <rect x="95" y="157" width="55" height="6" rx="3" fill="#94a3b8" />
         <rect x="95" y="168" width="40" height="5" rx="2.5" fill="#cbd5e1" />
         <path d="M75 190 H145" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Right Floating Card: Data Protected */}
-        <rect x="350" y="100" width="125" height="75" rx="10" fill="#ffffff" stroke="#93c5fd" strokeWidth="2" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.05))" />
-        <circle cx="375" cy="125" r="12" fill="#eff6ff" />
-        <path d="M375 119 L370 122 V127 C370 130 372 133 375 134 C378 133 380 130 380 127 V122 Z" fill="#3b82f6" />
+        {/* Right Floating Card */}
+        <rect
+          x="350"
+          y="100"
+          width="125"
+          height="75"
+          rx="10"
+          fill="#ffffff"
+          stroke={isInvestigator ? '#a5b4fc' : '#93c5fd'}
+          strokeWidth="2"
+        />
+        <circle cx="375" cy="125" r="12" fill={isInvestigator ? '#e0e7ff' : '#eff6ff'} />
+        <text
+          x="375"
+          y="129"
+          textAnchor="middle"
+          fill={isInvestigator ? '#4338ca' : '#2563eb'}
+          fontSize="10"
+          fontWeight="bold"
+        >
+          {isInvestigator ? '★' : '✓'}
+        </text>
         <rect x="395" y="118" width="60" height="6" rx="3" fill="#94a3b8" />
         <rect x="395" y="129" width="45" height="5" rx="2.5" fill="#cbd5e1" />
-        <circle cx="375" cy="155" r="4" fill="#22c55e" />
-        <text x="385" y="158" fill="#475569" fontSize="9" fontWeight="600" fontFamily="sans-serif">256-Bit SSL</text>
+        <text x="375" y="158" fill="#475569" fontSize="9" fontWeight="600" fontFamily="sans-serif">
+          {isInvestigator ? 'CYBER-CELL 4' : '256-Bit SSL'}
+        </text>
 
         {/* Connecting Dashed Security Lines */}
         <path d="M170 175 C185 175 185 170 195 170" stroke="#93c5fd" strokeWidth="2" strokeDasharray="4 4" />
         <path d="M325 140 C335 140 338 135 350 135" stroke="#93c5fd" strokeWidth="2" strokeDasharray="4 4" />
 
         {/* Bottom Key Card */}
-        <rect x="330" y="210" width="110" height="40" rx="8" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1.5" />
-        <circle cx="350" cy="230" r="7" fill="#fef3c7" />
-        <path d="M350 227 V233 M347 230 H353" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" />
-        <text x="365" y="234" fill="#64748b" fontSize="10" fontWeight="500" fontFamily="sans-serif">Citizen Portal</text>
+        <rect x="330" y="210" width="125" height="40" rx="8" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1.5" />
+        <circle cx="350" cy="230" r="7" fill={isInvestigator ? '#ede9fe' : '#fef3c7'} />
+        <path
+          d="M350 227 V233 M347 230 H353"
+          stroke={isInvestigator ? '#7c3aed' : '#d97706'}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <text x="365" y="234" fill="#64748b" fontSize="10" fontWeight="600" fontFamily="sans-serif">
+          {isInvestigator ? 'Officer Auth' : 'Citizen Portal'}
+        </text>
       </svg>
     </div>
   );
@@ -567,6 +893,23 @@ function CheckCircleIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0 text-emerald-600">
       <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+  );
+}
+
+function BadgeIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
     </svg>
   );
 }

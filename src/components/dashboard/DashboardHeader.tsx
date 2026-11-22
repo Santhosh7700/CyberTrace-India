@@ -1,7 +1,7 @@
-import type { UserProfile } from '../../context/authContextDef';
+import type { AuthUser } from '../../context/authContextDef';
 
 interface HeaderProps {
-  currentUser: UserProfile | null;
+  currentUser: AuthUser | null;
   onOpenMobileMenu: () => void;
   unreadCount?: number;
 }
@@ -42,7 +42,10 @@ export default function DashboardHeader({
 
         <div>
           <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-            Welcome, <span className="text-blue-700">{currentUser?.fullName || 'Citizen'}</span>
+            Welcome,{' '}
+            <span className="text-blue-700">
+              {currentUser && 'fullName' in currentUser ? currentUser.fullName : 'Citizen'}
+            </span>
           </h1>
           <p className="text-xs text-slate-500 hidden sm:block">
             Online Scam Evidence Gathering & Reporting Portal (Demo)
@@ -93,11 +96,11 @@ export default function DashboardHeader({
         {/* User Avatar */}
         <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
           <div className="w-9 h-9 rounded-full bg-blue-700 text-white font-semibold text-xs flex items-center justify-center ring-2 ring-blue-100 shadow-xs">
-            {getInitials(currentUser?.fullName)}
+            {getInitials(currentUser && 'fullName' in currentUser ? currentUser.fullName : undefined)}
           </div>
           <div className="hidden xl:block text-left">
             <p className="text-xs font-semibold text-slate-800 leading-none truncate max-w-[120px]">
-              {currentUser?.fullName || 'Citizen User'}
+              {currentUser && 'fullName' in currentUser ? currentUser.fullName : 'Citizen User'}
             </p>
             <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Verified Citizen</p>
           </div>

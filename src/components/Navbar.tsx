@@ -11,7 +11,7 @@ const navLinks = [
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { isAuthenticated, currentUser, logout } = useAuth();
+  const { isAuthenticated, currentUser, userRole, logout } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -38,14 +38,6 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <Link
-              to="/intelligence"
-              className="text-indigo-700 hover:text-indigo-900 text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 transition-colors flex items-center"
-              title="Inspect Fraud Pattern Intelligence Engine (Prototype)"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mr-1.5 animate-pulse"></span>
-              Fraud Intelligence
-            </Link>
           </div>
 
           {/* Desktop Auth Buttons */}
@@ -53,10 +45,12 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link
-                  to="/dashboard"
+                  to={userRole === 'investigator' ? '/investigator' : '/dashboard'}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors duration-200"
                 >
-                  Dashboard ({currentUser?.fullName.split(' ')[0]})
+                  {userRole === 'investigator'
+                    ? 'Investigator Portal'
+                    : `Dashboard (${currentUser && 'fullName' in currentUser ? currentUser.fullName.split(' ')[0] : 'Citizen'})`}
                 </Link>
                 <button
                   type="button"
@@ -112,21 +106,16 @@ export default function Navbar() {
             </a>
           ))}
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-            <Link
-              to="/intelligence"
-              onClick={() => setMenuOpen(false)}
-              className="block w-full text-center px-4 py-2 text-xs font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-md"
-            >
-              Fraud Intelligence Workspace (Demo)
-            </Link>
             {isAuthenticated ? (
               <>
                 <Link
-                  to="/dashboard"
+                  to={userRole === 'investigator' ? '/investigator' : '/dashboard'}
                   onClick={() => setMenuOpen(false)}
                   className="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors"
                 >
-                  Dashboard ({currentUser?.fullName.split(' ')[0]})
+                  {userRole === 'investigator'
+                    ? 'Investigator Portal'
+                    : `Dashboard (${currentUser && 'fullName' in currentUser ? currentUser.fullName.split(' ')[0] : 'Citizen'})`}
                 </Link>
                 <button
                   type="button"

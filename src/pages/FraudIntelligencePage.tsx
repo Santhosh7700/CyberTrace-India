@@ -103,7 +103,7 @@ export default function FraudIntelligencePage() {
             </div>
           </div>
 
-          {/* Quick Exit to Citizen Portal */}
+          {/* Quick Exit to Investigator Portal */}
           <div className="flex items-center space-x-3">
             {/* ── Shared Mask Sensitive Data toggle ── */}
             <label className="flex items-center space-x-2 text-xs font-medium text-slate-300 cursor-pointer select-none">
@@ -116,10 +116,10 @@ export default function FraudIntelligencePage() {
               <span>Mask Sensitive Data</span>
             </label>
             <Link
-              to="/dashboard"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+              to="/investigator"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-700 text-white hover:bg-indigo-600 transition-colors flex items-center space-x-1"
             >
-              Citizen Portal →
+              <span>← Return to Investigator Console</span>
             </Link>
           </div>
         </div>

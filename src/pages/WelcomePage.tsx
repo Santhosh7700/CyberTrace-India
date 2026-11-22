@@ -5,6 +5,7 @@ export default function WelcomePage() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const citizen = currentUser && 'fullName' in currentUser ? currentUser : null;
 
   const handleLogout = () => {
     logout();
@@ -29,7 +30,7 @@ export default function WelcomePage() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-medium">{currentUser?.fullName}</span>
+              <span className="font-medium">{citizen?.fullName || 'Citizen'}</span>
             </div>
 
             <button
@@ -67,7 +68,7 @@ export default function WelcomePage() {
               <span>Authenticated Citizen Session</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900">
-              Welcome, <span className="text-blue-700">{currentUser?.fullName || 'Citizen'}</span>
+              Welcome, <span className="text-blue-700">{citizen?.fullName || 'Citizen'}</span>
             </h1>
             <p className="text-base text-slate-600 mt-2 font-medium">
               Your account session is active.
@@ -82,15 +83,15 @@ export default function WelcomePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-white p-3.5 rounded-lg border border-slate-200">
                 <span className="text-xs text-slate-400 block">Citizen Name</span>
-                <span className="text-sm font-semibold text-slate-800 break-words">{currentUser?.fullName}</span>
+                <span className="text-sm font-semibold text-slate-800 break-words">{citizen?.fullName || 'N/A'}</span>
               </div>
               <div className="bg-white p-3.5 rounded-lg border border-slate-200">
                 <span className="text-xs text-slate-400 block">Registered Email</span>
-                <span className="text-sm font-semibold text-slate-800 break-words">{currentUser?.email}</span>
+                <span className="text-sm font-semibold text-slate-800 break-words">{citizen?.email || 'N/A'}</span>
               </div>
               <div className="bg-white p-3.5 rounded-lg border border-slate-200">
                 <span className="text-xs text-slate-400 block">Mobile Number</span>
-                <span className="text-sm font-semibold text-slate-800">{currentUser?.mobile}</span>
+                <span className="text-sm font-semibold text-slate-800">{citizen?.mobile || 'N/A'}</span>
               </div>
             </div>
           </div>

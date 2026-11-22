@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { AuthContext, type RegisteredAccount, type UserProfile, type AuthResponse } from './authContextDef';
+import {
+  AuthContext,
+  type RegisteredAccount,
+  type UserProfile,
+  type InvestigatorProfile,
+  type AuthUser,
+  type AuthResponse,
+} from './authContextDef';
+import { DEMO_INVESTIGATOR_CREDENTIALS } from './authConstants';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // In-memory list of registered accounts for the current session.
-  // Note: Stored strictly in React state, never in localStorage/sessionStorage.
+  // In-memory list of registered citizen accounts for the current session.
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredAccount[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   const register = ({
     fullName,
@@ -35,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mobile: mobile.trim(),
       password,
       registeredAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      role: 'citizen',
     };
 
     const profile: UserProfile = {
@@ -42,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: newAccount.email,
       mobile: newAccount.mobile,
       registeredAt: newAccount.registeredAt,
+      role: 'citizen',
     };
 
     setRegisteredUsers((prev) => [...prev, newAccount]);
@@ -71,16 +80,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Credentials match: update authenticated state (excluding password from profile)
     const profile: UserProfile = {
       fullName: account.fullName,
       email: account.email,
       mobile: account.mobile,
       registeredAt: account.registeredAt,
+      role: 'citizen',
     };
 
     setCurrentUser(profile);
     return { success: true };
+  };
+
+  const loginInvestigator = (cyberId: string, password: string): AuthResponse => {
+    const normalizedId = cyberId.trim().toUpperCase();
+
+    // Strict validation against predefined demo credentials
+    if (
+      normalizedId === DEMO_INVESTIGATOR_CREDENTIALS.cyberId &&
+      password === DEMO_INVESTIGATOR_CREDENTIALS.password
+    ) {
+      const investigatorProfile: InvestigatorProfile = {
+        ...DEMO_INVESTIGATOR_CREDENTIALS.profile,
+        lastActive: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setCurrentUser(investigatorProfile);
+      return { success: true };
+    }
+
+    if (normalizedId !== DEMO_INVESTIGATOR_CREDENTIALS.cyberId) {
+      return {
+        success: false,
+        error: `Invalid Cyber ID "${cyberId.trim()}". Only registered authorized cyber officers may log in.`,
+      };
+    }
+
+    return {
+      success: false,
+      error: 'Invalid password for this Cyber ID. Please check your official credentials.',
+    };
   };
 
   const logout = () => {
@@ -92,9 +130,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentUser,
         isAuthenticated: !!currentUser,
+        userRole: currentUser?.role || null,
         registeredUsersCount: registeredUsers.length,
         register,
         login,
+        loginInvestigator,
         logout,
       }}
     >

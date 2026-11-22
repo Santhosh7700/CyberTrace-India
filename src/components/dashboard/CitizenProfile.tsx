@@ -1,10 +1,12 @@
-import type { UserProfile } from '../../context/authContextDef';
+import type { UserProfile, AuthUser } from '../../context/authContextDef';
 
 interface CitizenProfileProps {
-  currentUser: UserProfile | null;
+  currentUser: AuthUser | null;
 }
 
 export default function CitizenProfile({ currentUser }: CitizenProfileProps) {
+  const citizen = currentUser && 'fullName' in currentUser ? (currentUser as UserProfile) : null;
+
   const getInitials = (name?: string) => {
     if (!name) return 'CT';
     const parts = name.trim().split(/\s+/);
@@ -18,12 +20,12 @@ export default function CitizenProfile({ currentUser }: CitizenProfileProps) {
       <div className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-bold text-2xl flex items-center justify-center ring-4 ring-blue-50 shadow-md">
-            {getInitials(currentUser?.fullName)}
+            {getInitials(citizen?.fullName)}
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                {currentUser?.fullName || 'Verified Citizen'}
+                {citizen?.fullName || 'Verified Citizen'}
               </h2>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 ✓ Identity Verified
@@ -51,7 +53,7 @@ export default function CitizenProfile({ currentUser }: CitizenProfileProps) {
               Full Legal Name
             </label>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800">
-              {currentUser?.fullName || 'Not provided'}
+              {citizen?.fullName || 'Not provided'}
             </div>
           </div>
 
@@ -60,7 +62,7 @@ export default function CitizenProfile({ currentUser }: CitizenProfileProps) {
               Registered Email Address
             </label>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 break-all">
-              {currentUser?.email || 'Not provided'}
+              {citizen?.email || 'Not provided'}
             </div>
           </div>
 
@@ -69,7 +71,7 @@ export default function CitizenProfile({ currentUser }: CitizenProfileProps) {
               Mobile Contact Number
             </label>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800">
-              {currentUser?.mobile || 'Not provided'}
+              {citizen?.mobile || 'Not provided'}
             </div>
           </div>
 
@@ -78,7 +80,7 @@ export default function CitizenProfile({ currentUser }: CitizenProfileProps) {
               Session Registration Date
             </label>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800">
-              {currentUser?.registeredAt || 'Active Session'}
+              {citizen?.registeredAt || 'Active Session'}
             </div>
           </div>
         </div>
