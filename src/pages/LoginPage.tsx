@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import { DEMO_INVESTIGATOR_CREDENTIALS } from '../context/authConstants';
+import { DEMO_INVESTIGATOR_CREDENTIALS, DEMO_ADMIN_CREDENTIALS } from '../context/authConstants';
 
-type LoginMode = 'citizen' | 'investigator';
+type LoginMode = 'citizen' | 'investigator' | 'admin';
 
 export default function LoginPage() {
-  const { login, loginInvestigator, isAuthenticated, userRole, registeredUsersCount } = useAuth();
+  const { login, loginInvestigator, loginAdmin, isAuthenticated, userRole, registeredUsersCount } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,12 +26,19 @@ export default function LoginPage() {
   const [investigatorPassword, setInvestigatorPassword] = useState('');
   const [investigatorShowPassword, setInvestigatorShowPassword] = useState(false);
 
+  // Admin Login State (Task 09)
+  const [adminId, setAdminId] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminShowPassword, setAdminShowPassword] = useState(false);
+
   // Validation errors
   const [errors, setErrors] = useState<{
     email?: string;
     citizenPassword?: string;
     cyberId?: string;
     investigatorPassword?: string;
+    adminId?: string;
+    adminPassword?: string;
   }>({});
 
   // Feedback banners
@@ -42,6 +49,9 @@ export default function LoginPage() {
 
   // If already authenticated, redirect to appropriate role portal
   if (isAuthenticated) {
+    if (userRole === 'admin') {
+      return <Navigate to="/admin" replace />;
+    }
     if (userRole === 'investigator') {
       return <Navigate to="/investigator" replace />;
     }
@@ -87,6 +97,23 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateAdmin = () => {
+    const newErrors: { adminId?: string; adminPassword?: string } = {};
+
+    if (!adminId.trim()) {
+      newErrors.adminId = 'Official Admin ID is required.';
+    } else if (adminId.trim().length < 4) {
+      newErrors.adminId = 'Please enter a valid Admin ID (e.g., CT-ADMIN-001).';
+    }
+
+    if (!adminPassword) {
+      newErrors.adminPassword = 'Admin authorization password is required.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleCitizenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
@@ -124,6 +151,24 @@ export default function LoginPage() {
     navigate('/investigator', { replace: true });
   };
 
+  const handleAdminSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+
+    if (!validateAdmin()) return;
+
+    const result = loginAdmin(adminId, adminPassword);
+    if (!result.success) {
+      setFeedback({
+        type: 'warning',
+        message: result.error || 'Admin authentication failed. Invalid Admin ID or password.',
+      });
+      return;
+    }
+
+    navigate('/admin', { replace: true });
+  };
+
   const handleUseDemoInvestigator = () => {
     setCyberId(DEMO_INVESTIGATOR_CREDENTIALS.cyberId);
     setInvestigatorPassword(DEMO_INVESTIGATOR_CREDENTIALS.password);
@@ -134,6 +179,16 @@ export default function LoginPage() {
     });
   };
 
+  const handleUseDemoAdmin = () => {
+    setAdminId(DEMO_ADMIN_CREDENTIALS.adminId);
+    setAdminPassword(DEMO_ADMIN_CREDENTIALS.password);
+    setErrors({});
+    setFeedback({
+      type: 'info',
+      message: 'Demo admin credentials loaded. Click "Authenticate as Administrator" to enter the Admin Allocation Portal.',
+    });
+  };
+
   const handleForgotPassword = (e: React.MouseEvent) => {
     e.preventDefault();
     setFeedback({
@@ -141,7 +196,9 @@ export default function LoginPage() {
       message:
         loginMode === 'citizen'
           ? 'Password recovery service is a placeholder and will be enabled when the citizen authentication system is fully implemented.'
-          : 'For officer credential recovery, contact the State Cyber Crime Command Center nodal administrator (Extension 1930).',
+          : loginMode === 'investigator'
+          ? 'For officer credential recovery, contact the State Cyber Crime Command Center nodal administrator (Extension 1930).'
+          : 'For administrator credential recovery, contact the National Directorate Systems Support Cell.',
     });
   };
 
@@ -176,7 +233,11 @@ export default function LoginPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full tracking-wide uppercase border border-blue-200 self-center lg:self-start mb-4">
               <LockShieldIcon />
               <span>
-                {loginMode === 'citizen' ? 'Official Citizen Access' : 'Law Enforcement Command Gateway'}
+                {loginMode === 'citizen'
+                  ? 'Official Citizen Access'
+                  : loginMode === 'investigator'
+                  ? 'Law Enforcement Command Gateway'
+                  : 'Directorate Administrative Access'}
               </span>
             </div>
 
@@ -185,9 +246,13 @@ export default function LoginPage() {
                 <>
                   Welcome <span className="text-blue-700">Back</span>
                 </>
-              ) : (
+              ) : loginMode === 'investigator' ? (
                 <>
                   Investigator <span className="text-indigo-700">Command</span>
+                </>
+              ) : (
+                <>
+                  System <span className="text-emerald-700">Administration</span>
                 </>
               )}
             </h1>
@@ -195,7 +260,9 @@ export default function LoginPage() {
             <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8">
               {loginMode === 'citizen'
                 ? 'Sign in to access your account, track reported scam complaints, and submit supporting forensic evidence.'
-                : 'Restricted law enforcement gateway for cybercrime officers, forensic analysts, and financial intelligence units.'}
+                : loginMode === 'investigator'
+                ? 'Restricted law enforcement gateway for cybercrime officers, forensic analysts, and financial intelligence units.'
+                : 'Central Case Allocation & Supervision Console for incoming citizen complaints and officer management.'}
             </p>
 
             {/* Cybersecurity Visual Illustration */}
@@ -230,7 +297,7 @@ export default function LoginPage() {
             <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
               
               {/* Mode Switcher Segmented Control */}
-              <div className="mb-6 bg-slate-100 p-1 rounded-xl flex items-center text-xs font-bold">
+              <div className="mb-6 bg-slate-100 p-1 rounded-xl grid grid-cols-3 gap-1 text-[11px] font-bold">
                 <button
                   type="button"
                   onClick={() => {
@@ -238,14 +305,14 @@ export default function LoginPage() {
                     setErrors({});
                     setFeedback(null);
                   }}
-                  className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                     loginMode === 'citizen'
-                      ? 'bg-white text-blue-800 shadow-xs border border-slate-200/80'
+                      ? 'bg-white text-blue-800 shadow-xs border border-slate-200/80 font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <UserIcon />
-                  <span>Citizen Login</span>
+                  <span>Citizen</span>
                 </button>
                 <button
                   type="button"
@@ -254,26 +321,48 @@ export default function LoginPage() {
                     setErrors({});
                     setFeedback(null);
                   }}
-                  className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                     loginMode === 'investigator'
-                      ? 'bg-slate-900 text-white shadow-xs'
+                      ? 'bg-slate-900 text-white shadow-xs font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <BadgeIcon />
-                  <span>Investigator Login</span>
+                  <span>Investigator</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMode('admin');
+                    setErrors({});
+                    setFeedback(null);
+                  }}
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    loginMode === 'admin'
+                      ? 'bg-emerald-700 text-white shadow-xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LockShieldIcon />
+                  <span>Admin</span>
                 </button>
               </div>
 
               {/* Form Title */}
               <div className="mb-5">
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                  {loginMode === 'citizen' ? 'Citizen Sign In' : 'Officer Authentication'}
+                  {loginMode === 'citizen'
+                    ? 'Citizen Sign In'
+                    : loginMode === 'investigator'
+                    ? 'Officer Authentication'
+                    : 'Administrator Portal'}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   {loginMode === 'citizen'
                     ? 'Enter your verified credentials to access your reported complaints.'
-                    : 'Provide your assigned Cyber ID and official authorization password.'}
+                    : loginMode === 'investigator'
+                    ? 'Provide your assigned Cyber ID and official authorization password.'
+                    : 'Provide your designated Administrator ID and supervisory password.'}
                 </p>
               </div>
 
@@ -317,6 +406,36 @@ export default function LoginPage() {
                   </div>
                   <p className="text-[10px] text-amber-700 mt-1 italic">
                     Demonstration only. Not linked to real police or law enforcement databases.
+                  </p>
+                </div>
+              )}
+
+              {/* Admin: Demo Credentials Quick-Fill Card (Task 09) */}
+              {loginMode === 'admin' && (
+                <div className="mb-5 p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-950">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      Demo Admin Credentials (Task 09)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleUseDemoAdmin}
+                      className="px-2 py-0.5 bg-emerald-200/80 hover:bg-emerald-300 text-emerald-950 font-bold rounded text-[10px] transition-colors"
+                    >
+                      Autofill Demo
+                    </button>
+                  </div>
+                  <div className="font-mono text-[11px] space-y-0.5 bg-white/80 p-2 rounded border border-emerald-200/70">
+                    <div>
+                      <strong className="text-slate-600">Admin ID:</strong> {DEMO_ADMIN_CREDENTIALS.adminId}
+                    </div>
+                    <div>
+                      <strong className="text-slate-600">Password:</strong> {DEMO_ADMIN_CREDENTIALS.password}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-emerald-800 mt-1 italic">
+                    Administrator portal connects citizen intake and officer case allocation workflows.
                   </p>
                 </div>
               )}
@@ -579,6 +698,124 @@ export default function LoginPage() {
 
                   <p className="text-[10px] text-slate-400 text-center">
                     Law enforcement registration is managed internally. No public investigator registration is permitted.
+                  </p>
+                </form>
+              )}
+
+              {/* ─────────────────────────────────────────────────────────── */}
+              {/* MODE C: ADMIN LOGIN FORM (Task 09)                          */}
+              {/* ─────────────────────────────────────────────────────────── */}
+              {loginMode === 'admin' && (
+                <form onSubmit={handleAdminSubmit} noValidate className="space-y-4">
+                  {/* Directorate Header Banner */}
+                  <div className="p-2.5 bg-emerald-950 text-white rounded-lg flex items-center gap-2 text-[11px] border border-emerald-800">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse"></span>
+                    <span className="font-semibold text-emerald-100">
+                      National Directorate Case Allocation Console
+                    </span>
+                    <span className="text-emerald-300 ml-auto font-mono text-[10px]">DIR-OPS</span>
+                  </div>
+
+                  {/* Admin ID Field */}
+                  <div>
+                    <label htmlFor="admin-id" className="block text-xs font-semibold text-slate-700 mb-1">
+                      Administrator ID <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <BadgeIcon />
+                      </div>
+                      <input
+                        id="admin-id"
+                        type="text"
+                        autoComplete="username"
+                        value={adminId}
+                        onChange={(e) => {
+                          setAdminId(e.target.value);
+                          if (errors.adminId) {
+                            setErrors((prev) => ({ ...prev, adminId: undefined }));
+                          }
+                        }}
+                        placeholder="e.g. CT-ADMIN-001"
+                        className={`block w-full pl-10 pr-3 py-2.5 text-xs sm:text-sm font-mono uppercase bg-white border rounded-lg transition-colors focus:outline-none ${
+                          errors.adminId
+                            ? 'border-red-400 text-slate-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-300 text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100'
+                        }`}
+                      />
+                    </div>
+                    {errors.adminId && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircleIcon />
+                        <span>{errors.adminId}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Password Field */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label htmlFor="admin-password" className="block text-xs font-semibold text-slate-700">
+                        Supervisory Password <span className="text-red-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+                      >
+                        Need Help?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <KeyIcon />
+                      </div>
+                      <input
+                        id="admin-password"
+                        type={adminShowPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        value={adminPassword}
+                        onChange={(e) => {
+                          setAdminPassword(e.target.value);
+                          if (errors.adminPassword) {
+                            setErrors((prev) => ({ ...prev, adminPassword: undefined }));
+                          }
+                        }}
+                        placeholder="••••••••••••"
+                        className={`block w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-white border rounded-lg transition-colors focus:outline-none ${
+                          errors.adminPassword
+                            ? 'border-red-400 text-slate-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-300 text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAdminShowPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                        aria-label={adminShowPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {adminShowPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                    {errors.adminPassword && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircleIcon />
+                        <span>{errors.adminPassword}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold rounded-lg shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  >
+                    <LockShieldIcon />
+                    Authenticate as Administrator
+                  </button>
+
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Strict administrative clearance required. All case transfers and allocations are digitally audited.
                   </p>
                 </form>
               )}

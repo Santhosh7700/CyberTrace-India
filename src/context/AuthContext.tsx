@@ -4,10 +4,11 @@ import {
   type RegisteredAccount,
   type UserProfile,
   type InvestigatorProfile,
+  type AdminProfile,
   type AuthUser,
   type AuthResponse,
 } from './authContextDef';
-import { DEMO_INVESTIGATOR_CREDENTIALS } from './authConstants';
+import { DEMO_INVESTIGATOR_CREDENTIALS, DEMO_ADMIN_CREDENTIALS } from './authConstants';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // In-memory list of registered citizen accounts for the current session.
@@ -121,6 +122,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  const loginAdmin = (adminId: string, password: string): AuthResponse => {
+    const normalizedId = adminId.trim().toUpperCase();
+
+    if (
+      normalizedId === DEMO_ADMIN_CREDENTIALS.adminId &&
+      password === DEMO_ADMIN_CREDENTIALS.password
+    ) {
+      const adminProfile: AdminProfile = {
+        ...DEMO_ADMIN_CREDENTIALS.profile,
+        lastActive: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setCurrentUser(adminProfile);
+      return { success: true };
+    }
+
+    if (normalizedId !== DEMO_ADMIN_CREDENTIALS.adminId) {
+      return {
+        success: false,
+        error: `Invalid Admin ID "${adminId.trim()}". Only registered nodal system administrators may log in.`,
+      };
+    }
+
+    return {
+      success: false,
+      error: 'Invalid password for this Admin ID. Please verify your administrative credentials.',
+    };
+  };
+
   const logout = () => {
     setCurrentUser(null);
   };
@@ -135,6 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         login,
         loginInvestigator,
+        loginAdmin,
         logout,
       }}
     >

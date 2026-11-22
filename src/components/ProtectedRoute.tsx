@@ -19,6 +19,9 @@ export default function ProtectedRoute({ children, allowedRole }: ProtectedRoute
 
   // Role-based protection: if allowedRole is specified and doesn't match, redirect to the user's appropriate area
   if (allowedRole && userRole !== allowedRole) {
+    if (userRole === 'admin') {
+      return <Navigate to="/admin" replace />;
+    }
     if (userRole === 'investigator') {
       return <Navigate to="/investigator" replace />;
     }

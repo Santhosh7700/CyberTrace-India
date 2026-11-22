@@ -45,10 +45,18 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link
-                  to={userRole === 'investigator' ? '/investigator' : '/dashboard'}
+                  to={
+                    userRole === 'admin'
+                      ? '/admin'
+                      : userRole === 'investigator'
+                      ? '/investigator'
+                      : '/dashboard'
+                  }
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors duration-200"
                 >
-                  {userRole === 'investigator'
+                  {userRole === 'admin'
+                    ? 'Admin Portal'
+                    : userRole === 'investigator'
                     ? 'Investigator Portal'
                     : `Dashboard (${currentUser && 'fullName' in currentUser ? currentUser.fullName.split(' ')[0] : 'Citizen'})`}
                 </Link>
@@ -109,11 +117,19 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link
-                  to={userRole === 'investigator' ? '/investigator' : '/dashboard'}
+                  to={
+                    userRole === 'admin'
+                      ? '/admin'
+                      : userRole === 'investigator'
+                      ? '/investigator'
+                      : '/dashboard'
+                  }
                   onClick={() => setMenuOpen(false)}
                   className="block w-full text-center px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors"
                 >
-                  {userRole === 'investigator'
+                  {userRole === 'admin'
+                    ? 'Admin Portal'
+                    : userRole === 'investigator'
                     ? 'Investigator Portal'
                     : `Dashboard (${currentUser && 'fullName' in currentUser ? currentUser.fullName.split(' ')[0] : 'Citizen'})`}
                 </Link>

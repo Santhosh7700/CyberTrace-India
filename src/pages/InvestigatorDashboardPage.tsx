@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import type { InvestigatorCase, InvestigationStatus } from '../types/investigator';
-import { INITIAL_INVESTIGATOR_CASES } from '../data/investigatorCases';
+import { useCaseAllocation } from '../context/useCaseAllocation';
+import type { InvestigationStatus } from '../types/investigator';
 import InvestigatorSidebar, { type InvestigatorTab } from '../components/investigator/InvestigatorSidebar';
 import InvestigatorHeader from '../components/investigator/InvestigatorHeader';
 import AssignedCasesTable from '../components/investigator/AssignedCasesTable';
@@ -14,16 +14,24 @@ import InvestigatorProfileSection from '../components/investigator/InvestigatorP
 export default function InvestigatorDashboardPage() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { cases: allCases, updateCaseStatus } = useCaseAllocation();
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<InvestigatorTab>('overview');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // In-memory cases state initialized with synthetic sample incident records
-  const [cases, setCases] = useState<InvestigatorCase[]>(INITIAL_INVESTIGATOR_CASES);
-
   // Active modal inspection case
-  const [inspectedCase, setInspectedCase] = useState<InvestigatorCase | null>(null);
+  const [inspectedCaseId, setInspectedCaseId] = useState<string | null>(null);
+
+  // Officer Cyber ID for filtering assigned cases (defaulting to CYB-IN-20481)
+  const currentOfficerCyberId =
+    currentUser && 'cyberId' in currentUser ? currentUser.cyberId : 'CYB-IN-20481';
+
+  // Filter cases assigned to this logged-in officer
+  const cases = allCases.filter((c) => c.assignedInvestigatorId === currentOfficerCyberId);
+
+  // Inspected case derived from shared allocation store
+  const inspectedCase = inspectedCaseId ? allCases.find((c) => c.id === inspectedCaseId) || null : null;
 
   // Statistics
   const totalAssignedCases = cases.length;
@@ -41,37 +49,9 @@ export default function InvestigatorDashboardPage() {
   };
 
   const handleUpdateStatus = (caseId: string, newStatus: InvestigationStatus, statusNote: string) => {
-    const timestamp = new Date().toLocaleString([], {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    setCases((prev) =>
-      prev.map((c) => {
-        if (c.id !== caseId) return c;
-        const updatedCase: InvestigatorCase = {
-          ...c,
-          status: newStatus,
-          timeline: [
-            ...c.timeline,
-            {
-              stage: newStatus,
-              timestamp,
-              note: statusNote,
-              actor: 'Insp. R. Deshmukh (CYB-IN-20481)',
-            },
-          ],
-        };
-        // Also update active inspected case if open
-        if (inspectedCase?.id === caseId) {
-          setInspectedCase(updatedCase);
-        }
-        return updatedCase;
-      })
-    );
+    const officerName =
+      currentUser && 'name' in currentUser ? `${currentUser.name} (${currentOfficerCyberId})` : undefined;
+    updateCaseStatus(caseId, newStatus, statusNote, officerName);
   };
 
   const handleQuickStatusChange = (caseId: string, newStatus: InvestigationStatus) => {
@@ -209,7 +189,7 @@ export default function InvestigatorDashboardPage() {
               {/* Assigned Cases Table */}
               <AssignedCasesTable
                 cases={cases}
-                onInspectCase={(c) => setInspectedCase(c)}
+                onInspectCase={(c) => setInspectedCaseId(c.id)}
                 onQuickStatusChange={handleQuickStatusChange}
               />
             </div>
@@ -220,7 +200,7 @@ export default function InvestigatorDashboardPage() {
             <div className="space-y-6">
               <AssignedCasesTable
                 cases={cases}
-                onInspectCase={(c) => setInspectedCase(c)}
+                onInspectCase={(c) => setInspectedCaseId(c.id)}
                 onQuickStatusChange={handleQuickStatusChange}
               />
             </div>
@@ -230,7 +210,7 @@ export default function InvestigatorDashboardPage() {
           {activeTab === 'evidence-review' && (
             <EvidenceReviewSection
               cases={cases}
-              onInspectCase={(c) => setInspectedCase(c)}
+              onInspectCase={(c) => setInspectedCaseId(c.id)}
             />
           )}
 
@@ -238,7 +218,7 @@ export default function InvestigatorDashboardPage() {
           {activeTab === 'history' && (
             <InvestigationHistorySection
               cases={cases}
-              onInspectCase={(c) => setInspectedCase(c)}
+              onInspectCase={(c) => setInspectedCaseId(c.id)}
             />
           )}
 
@@ -257,7 +237,7 @@ export default function InvestigatorDashboardPage() {
       {inspectedCase && (
         <CaseDetailModal
           caseItem={inspectedCase}
-          onClose={() => setInspectedCase(null)}
+          onClose={() => setInspectedCaseId(null)}
           onUpdateStatus={handleUpdateStatus}
         />
       )}
