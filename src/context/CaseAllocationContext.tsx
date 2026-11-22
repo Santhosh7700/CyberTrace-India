@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import type { InvestigatorCase, InvestigationStatus } from '../types/investigator';
+import type { InvestigatorCase, InvestigationStatus, CasePriority } from '../types/investigator';
 import type { CaseAssignmentRecord } from '../types/allocation';
+import type { ScamReport } from '../types/dashboard';
 import {
   DEMO_INVESTIGATORS,
   getInitialCaseAllocationStore,
@@ -57,6 +58,48 @@ export const CaseAllocationProvider: React.FC<{ children: React.ReactNode }> = (
       // ignore
     }
   }, [assignmentHistory]);
+
+  const addCitizenReport = (report: ScamReport, victimName?: string) => {
+    // Derive sensible priority based on amount lost
+    let priority: CasePriority = 'Medium';
+    if (report.amountLost >= 75000) priority = 'Critical';
+    else if (report.amountLost >= 30000) priority = 'High';
+    else if (report.amountLost < 10000) priority = 'Low';
+
+    const newCase: InvestigatorCase = {
+      id: `case-${report.id}`,
+      referenceId: report.referenceId,
+      assignedInvestigatorId: '',
+      victimName: victimName || 'Citizen Reporter',
+      category: report.category,
+      reportedDate: report.reportedDate,
+      amountLost: report.amountLost,
+      priority,
+      status: 'Submitted',
+      assignedOfficer: 'Unassigned',
+      suspectIdentifiers: report.suspectIdentifiers || [],
+      transactionId: report.transactionId,
+      platform: report.platform,
+      description: report.description,
+      evidenceFiles: report.evidenceFiles || [],
+      timeline: [
+        {
+          stage: 'Submitted',
+          timestamp: report.statusTimeline.submittedAt,
+          note: report.statusTimeline.remarks || 'Case submitted by citizen through Citizen Portal.',
+          actor: victimName ? `${victimName} (Citizen)` : 'Citizen Victim (Initial Filing)',
+        },
+      ],
+    };
+
+    setCases((prev) => {
+      // Avoid duplicate insertion
+      if (prev.some((c) => c.referenceId === report.referenceId)) {
+        return prev;
+      }
+      return [newCase, ...prev];
+    });
+  };
 
   const assignCase = (
     caseId: string,
@@ -193,6 +236,7 @@ export const CaseAllocationProvider: React.FC<{ children: React.ReactNode }> = (
         cases,
         investigators: DEMO_INVESTIGATORS,
         assignmentHistory,
+        addCitizenReport,
         assignCase,
         updateCaseStatus,
         resetToDefault,

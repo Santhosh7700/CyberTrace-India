@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import { useCaseAllocation } from '../context/useCaseAllocation';
 import type { ScamReport } from '../types/dashboard';
 import { INITIAL_MOCK_REPORTS } from '../data/mockReports';
 import DashboardSidebar, { type DashboardTab } from '../components/dashboard/DashboardSidebar';
@@ -16,6 +17,7 @@ import CitizenProfile from '../components/dashboard/CitizenProfile';
 export default function DashboardPage() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { addCitizenReport } = useCaseAllocation();
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
@@ -50,8 +52,12 @@ export default function DashboardPage() {
   };
 
   const handleNewReportSubmitted = (newReport: ScamReport) => {
-    // Add newly submitted complaint at the front of the reports list
+    // Add newly submitted complaint at the front of the citizen reports list
     setReports((prev) => [newReport, ...prev]);
+
+    // Also sync into the centralized Case Allocation repository so Admin & Investigators can triage it
+    const victimName = currentUser && 'fullName' in currentUser ? currentUser.fullName : undefined;
+    addCitizenReport(newReport, victimName);
   };
 
   const handleViewReportDetails = (report: ScamReport) => {

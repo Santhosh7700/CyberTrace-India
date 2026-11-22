@@ -1,11 +1,13 @@
 import { createContext } from 'react';
 import type { InvestigatorCase, InvestigationStatus } from '../types/investigator';
 import type { DemoInvestigator, CaseAssignmentRecord } from '../types/allocation';
+import type { ScamReport } from '../types/dashboard';
 
 export interface CaseAllocationContextType {
   cases: InvestigatorCase[];
   investigators: DemoInvestigator[];
   assignmentHistory: CaseAssignmentRecord[];
+  addCitizenReport: (report: ScamReport, victimName?: string) => void;
   assignCase: (
     caseId: string,
     investigatorId: string,
