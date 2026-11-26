@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend & Environment
+.env
+backend/.env
+backend/target/
+*.jar
+*.class

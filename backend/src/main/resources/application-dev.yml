@@ -1,0 +1,9 @@
+spring:
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    org.springframework.web: INFO
+    org.flywaydb: INFO
+    com.cybertrace.india: DEBUG
