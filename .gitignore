@@ -29,3 +29,6 @@ backend/.env
 backend/target/
 *.jar
 *.class
+
+# Uploaded evidence files (never commit user evidence)
+backend/uploads/

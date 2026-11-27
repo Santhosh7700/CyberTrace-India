@@ -28,6 +28,11 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 25MB
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -46,3 +51,5 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  storage:
+    local-dir: ${EVIDENCE_STORAGE_DIR:uploads/evidence}
